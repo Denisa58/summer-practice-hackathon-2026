@@ -1,11 +1,16 @@
 package ro.showup.showup2move.model;
 
+import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
+import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 
@@ -21,13 +26,23 @@ public class Event {
     private String eventTime;
     private String description;
     private int maxParticipants = 10; 
-    
+
+    // Această adnotare creează automat un tabel secundar pentru mesaje
+    @ElementCollection
+    @CollectionTable(name = "event_discussions", joinColumns = @JoinColumn(name = "event_id"))
+    @Column(name = "message")
+    private List<String> discussions = new ArrayList<>();
+
     @ManyToMany
     private List<User> participants;
 
     public Event() {}
 
-    // Getters and Setters
+    // Getters și Setters pentru Chat
+    public List<String> getDiscussions() { return discussions; }
+    public void setDiscussions(List<String> discussions) { this.discussions = discussions; }
+
+    // Restul de Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -46,11 +61,6 @@ public class Event {
     public List<User> getParticipants() { return participants; }
     public void setParticipants(List<User> participants) { this.participants = participants; }
 
-    public int getMaxParticipants() {
-        return maxParticipants;
-    }
-
-    public void setMaxParticipants(int maxParticipants) {
-        this.maxParticipants = maxParticipants;
-    }
+    public int getMaxParticipants() { return maxParticipants; }
+    public void setMaxParticipants(int maxParticipants) { this.maxParticipants = maxParticipants; }
 }

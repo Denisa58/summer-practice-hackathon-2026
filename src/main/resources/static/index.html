@@ -183,80 +183,149 @@ if (loggedUser) {
     }
 
     // 4. Fetch events
-    async function fetchEvents() {
-        try {
-            const response = await fetch('/api/events');
-            const events = await response.json();
-            const container = document.getElementById('events-list');
-            container.innerHTML = '';
+async function fetchEvents() {
+    try {
+        const response = await fetch('/api/events');
+        const events = await response.json();
+        const container = document.getElementById('events-list');
+        container.innerHTML = '';
 
-            if (events.length === 0) {
-                container.innerHTML = '<p class="text-center text-muted">No matches yet. Organize one!</p>';
-                return;
+        if (events.length === 0) {
+            container.innerHTML = '<p class="text-center text-muted">No matches yet. Organize one!</p>';
+            return;
+        }
+
+        events.forEach(event => {
+            const isAlreadyJoined = event.participants.some(p => p.id === loggedUser.id);
+            const isUserBusy = !loggedUser.available;
+            const maxSlots = event.maxParticipants || 10;
+            const occupiedSlots = event.participants.length;
+            const remainingSlots = maxSlots - occupiedSlots;
+            const isFull = remainingSlots <= 0;
+
+            const participantsList = event.participants.map(p => 
+                `<span class="badge bg-secondary m-1">${p.name}</span>`
+            ).join('');
+
+            // --- CHAT LOGIC ---
+            let chatHtml = '';
+            if (isAlreadyJoined) {
+                const discussionHtml = event.discussions && event.discussions.length > 0 
+                    ? event.discussions.map(m => `<div class="small border-bottom py-1 text-dark">💬 ${m}</div>`).join('')
+                    : '<span class="text-muted small">No messages yet.</span>';
+
+                chatHtml = `
+                    <div class="mt-3 bg-light p-2 rounded" style="max-height: 120px; overflow-y: auto; border: 1px solid #eee;">
+                        <label class="small fw-bold text-primary d-block mb-1">Event Chat:</label>
+                        <div id="chat-box-${event.id}">${discussionHtml}</div>
+                    </div>
+                    <div class="input-group mt-2">
+                        <input type="text" id="msg-${event.id}" class="form-control form-control-sm" placeholder="Type...">
+                        <button class="btn btn-sm btn-primary" onclick="sendMessage(${event.id})">Send</button>
+                    </div>`;
+            } else {
+                chatHtml = `<div class="mt-3 p-2 border rounded bg-light text-center"><small class="text-muted">🔒 Join to chat</small></div>`;
             }
 
-            events.forEach(event => {
-                const isAlreadyJoined = event.participants.some(p => p.id === loggedUser.id);
-                const isUserBusy = !loggedUser.available;
-                const maxSlots = event.maxParticipants || 10;
-                const occupiedSlots = event.participants.length;
-                const remainingSlots = maxSlots - occupiedSlots;
-                const isFull = remainingSlots <= 0;
+            // --- CARD HTML ---
+            const eventHtml = `
+                <div class="col-md-6">
+                    <div class="card user-card p-3 border-start border-primary border-4 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h5 class="fw-bold text-uppercase mb-0">${event.sport}</h5>
+                                <span class="badge ${isFull ? 'bg-danger' : 'bg-success'}">
+                                    ${isFull ? 'FULL' : remainingSlots + ' slots left'}
+                                </span>
+                            </div>
+                            <p class="mb-1 text-primary small fw-bold">📅 ${event.eventTime ? event.eventTime.replace('T', ' ') : 'N/A'}</p>
+                            <p class="mb-1 text-muted small">📍 ${event.location}</p>
+                            
+                            <div class="mt-3">
+                                <label class="small fw-bold text-muted d-block mb-1">Participants:</label>
+                                <div class="d-flex flex-wrap">${participantsList}</div>
+                            </div>
 
-                const participantsList = event.participants.map(p => 
-                    `<span class="badge bg-secondary m-1">${p.name}</span>`
-                ).join('');
+                            ${chatHtml}
 
-                const eventHtml = `
-                    <div class="col-md-6">
-                        <div class="card user-card p-3 border-start border-primary border-4 shadow-sm">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-center mb-2">
-                                    <h5 class="fw-bold text-uppercase mb-0">${event.sport}</h5>
-                                    <span class="badge ${isFull ? 'bg-danger' : 'bg-success'}">
-                                        ${isFull ? 'FULL' : remainingSlots + ' slots left'}
-                                    </span>
-                                </div>
-                                <p class="mb-1 text-primary small fw-bold">📅 ${event.eventTime.replace('T', ' ')}</p>
-                                <p class="mb-1 text-muted small">📍 ${event.location}</p>
-                                <div class="mt-3">
-                                    <label class="small fw-bold text-muted d-block mb-1">Participants:</label>
-                                    <div class="d-flex flex-wrap">${participantsList}</div>
-                                </div>
-                                <hr>
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <small class="text-muted">${occupiedSlots}/${maxSlots} joined</small>
-                                    <button 
-                                        class="btn btn-sm ${isUserBusy ? 'btn-secondary' : (isAlreadyJoined ? 'btn-success' : (isFull ? 'btn-danger' : 'btn-primary'))} fw-bold px-3" 
-                                        onclick="joinMatch(${event.id})"
-                                        ${isUserBusy || isAlreadyJoined || isFull ? 'disabled' : ''}>
-                                        ${isAlreadyJoined ? '✓ Joined' : (isFull ? 'Match Full' : (isUserBusy ? 'Set Available' : 'Join Match'))}
-                                    </button>
-                                </div>
+                            <hr>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">${occupiedSlots}/${maxSlots} joined</small>
+                                <button 
+                                    class="btn btn-sm ${isUserBusy ? 'btn-secondary' : (isAlreadyJoined ? 'btn-success' : (isFull ? 'btn-danger' : 'btn-primary'))} fw-bold px-3" 
+                                    onclick="joinMatch(${event.id})"
+                                    ${(isUserBusy || isAlreadyJoined || isFull) ? 'disabled' : ''}>
+                                    ${isAlreadyJoined ? '✓ Joined' : (isFull ? 'Match Full' : (isUserBusy ? 'Set Available' : 'Join Match'))}
+                                </button>
                             </div>
                         </div>
                     </div>
-                `;
-                container.innerHTML += eventHtml;
-            });
-        } catch (error) {
-            console.error('Error:', error);
-        }
+                </div>`;
+            container.innerHTML += eventHtml;
+        });
+    } catch (error) {
+        console.error('Fetch error:', error);
     }
+}
+async function sendMessage(eventId) {
+    const input = document.getElementById(`msg-${eventId}`);
+    const messageText = input.value.trim();
+    if (!messageText) return;
+
+    try {
+        const response = await fetch(`/api/events/${eventId}/message`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                userName: loggedUser.name, 
+                text: messageText 
+            })
+        });
+
+        if (response.ok) {
+            input.value = '';
+            fetchEvents(); // Reîncărcăm lista ca să apară mesajul nou
+        }
+    } catch (error) {
+        console.error("Chat Error:", error);
+    }
+}
 
     async function joinMatch(eventId) {
-        if (!loggedUser.available) {
-            alert("❌ Set yourself as 'Available' first!");
-            return;
-        }
-        try {
-            const response = await fetch(`/api/events/${eventId}/join/${loggedUser.id}`, { method: 'PUT' });
-            if (response.ok) {
-                alert("Joined! 🏟️");
-                location.reload(); 
-            }
-        } catch (error) { console.error(error); }
+    if (!loggedUser.available) {
+        alert("❌ Set yourself as 'Available' first!");
+        return;
     }
+
+    try {
+        const response = await fetch(`/api/events/${eventId}/join/${loggedUser.id}`, { 
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (response.ok) {
+            // Pasul 1: Confirmăm vizual
+            console.log("Join successful for event:", eventId);
+            
+            // Pasul 2: Reîncărcăm utilizatorul curent de la server ca să fim siguri că are statusul nou
+            const userRes = await fetch(`/api/users/${loggedUser.id}`);
+            if (userRes.ok) {
+                const updatedUser = await userRes.json();
+                localStorage.setItem('loggedUser', JSON.stringify(updatedUser));
+                loggedUser = updatedUser;
+            }
+
+            // Pasul 3: Reîncărcăm evenimentele (asta va debloca chat-ul)
+            await fetchEvents(); 
+            
+            alert("Joined! 🏟️");
+        } else {
+            alert("Could not join match. Check if it's already full.");
+        }
+    } catch (error) {
+        console.error("Join error:", error);
+    }
+}
 
     // FUNCȚIA DE INVITE ADĂUGATĂ AICI
    function sendInvite(userId, userName) {
