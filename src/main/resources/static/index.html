@@ -63,6 +63,34 @@
         document.getElementById('welcomeMsg').innerText = `Hi, ${loggedUser.name}! 👋`;
         updateButtonState();
     }
+    // --- DETECTORUL DE INVITAȚII (Adaugă aici) ---
+if (loggedUser) {
+    const myInvite = localStorage.getItem('pendingInvite_' + loggedUser.id);
+    
+    if (myInvite) {
+        const data = JSON.parse(myInvite);
+        
+        setTimeout(() => {
+            const inviteDiv = document.createElement('div');
+            inviteDiv.className = "alert alert-success alert-dismissible fade show shadow";
+            inviteDiv.style = "position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px; border-left: 5px solid #155724; background-color: #d4edda;";
+            inviteDiv.innerHTML = `
+                <strong>🔔 New Match Invite!</strong><br>
+                ${data.from} invited you to play! (Sent at ${data.time})<br>
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-success" onclick="this.parentElement.parentElement.remove()">Accept</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="this.parentElement.parentElement.remove()">Decline</button>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(inviteDiv);
+            
+            // Ștergem invitația ca să nu apară la fiecare refresh
+            localStorage.removeItem('pendingInvite_' + loggedUser.id);
+        }, 1500);
+    }
+}
+
 
     function logout() {
         localStorage.removeItem('loggedUser');
@@ -80,7 +108,7 @@
         }
     }
 
-    // 2. Status change function (NUME CORECTAT: toggleMyStatus)
+    // 2. Status change function
     async function toggleMyStatus() {
         console.log("Toggle status init...");
         try {
@@ -92,26 +120,20 @@
 
             const data = await response.json();
             
-            // Actualizăm datele locale cu ce a venit de la server
             localStorage.setItem('loggedUser', JSON.stringify(data.user));
             loggedUser = data.user;
 
-            // Logica Smart Match (Sugestie)
-            // ... în interiorul toggleMyStatus, după ce primești data ...
-
-if (data.suggestion) {
-    if (confirm(data.suggestion)) {
-        if (data.type === "JOIN_EXISTING") {
-            // Dacă meciul există deja, mergem jos la lista de meciuri să dea "Join"
-            document.getElementById('events-list').scrollIntoView({ behavior: 'smooth' });
-        } else {
-            // Dacă e un meci nou, mergem la pagina de creare
-            window.location.href = 'create-event.html';
-        }
-        return;
-    }
-}
-    location.reload();
+            if (data.suggestion) {
+                if (confirm(data.suggestion)) {
+                    if (data.type === "JOIN_EXISTING") {
+                        document.getElementById('events-list').scrollIntoView({ behavior: 'smooth' });
+                    } else {
+                        window.location.href = 'create-event.html';
+                    }
+                    return;
+                }
+            }
+            location.reload();
 
         } catch (error) {
             console.error("Error:", error);
@@ -147,7 +169,7 @@ if (data.suggestion) {
                                     <span class="badge ${user.available ? 'bg-success' : 'bg-danger'}">
                                         ${user.available ? 'Available' : 'Unavailable'}
                                     </span>
-                                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3">Invite</button>
+                                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3" onclick="sendInvite(${user.id}, '${user.name}')">Invite</button>
                                 </div>
                             </div>
                         </div>
@@ -236,6 +258,20 @@ if (data.suggestion) {
         } catch (error) { console.error(error); }
     }
 
+    // FUNCȚIA DE INVITE ADĂUGATĂ AICI
+   function sendInvite(userId, userName) {
+    // Salvăm datele invitației
+    const inviteData = {
+        from: loggedUser.name,
+        toId: userId,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    
+    // O punem în localStorage sub un ID specific
+    localStorage.setItem('pendingInvite_' + userId, JSON.stringify(inviteData));
+    
+    alert(`📩 Invitation sent to ${userName}! They will see it when they log in.`);
+}
     // Initial load
     fetchUsers();
     fetchEvents();

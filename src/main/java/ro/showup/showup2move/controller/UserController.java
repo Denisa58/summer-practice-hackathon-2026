@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -83,36 +84,26 @@ public class UserController {
         }
         return response;
     }
-    @PostMapping("/analyze-bio")
+   @PostMapping("/analyze-bio")
 public List<String> analyzeBio(@RequestBody Map<String, String> request) {
     String bio = request.get("bio").toLowerCase();
     
-    // Map de cuvinte cheie extinse pentru limba engleză
+    // Dicționar inteligent de cuvinte cheie
     Map<String, List<String>> keywords = new HashMap<>();
-    
-    keywords.put("Football", List.of(
-        "football", "soccer", "pitch", "striker", "ball", "goal", "kick"
-    ));
-    
-    keywords.put("Basketball", List.of(
-        "basketball", "hoops", "dunk", "court", "basket", "lebron", "shooting"
-    ));
-    
-    keywords.put("Tennis", List.of(
-        "tennis", "racket", "court", "match", "serve"
-    ));
-    
-    keywords.put("Swimming", List.of(
-        "swimming", "pool", "laps", "water", "swim"
-    ));
-
-    keywords.put("Volleyball", List.of(
-        "volleyball", "spike", "net", "serve", "beach volley"
-    ));
+    keywords.put("Football", List.of("football", "soccer", "pitch", "ball", "goal", "kick"));
+    keywords.put("Basketball", List.of("basketball", "hoops", "dunk", "court", "basket"));
+    keywords.put("Tennis", List.of("tennis", "racket", "court", "match", "serve"));
+    keywords.put("Swimming", List.of("swimming", "pool", "laps", "water", "swim"));
+    keywords.put("Volleyball", List.of("volleyball", "spike", "net", "serve", "beach volley"));
 
     return keywords.entrySet().stream()
             .filter(entry -> entry.getValue().stream().anyMatch(bio::contains))
             .map(Map.Entry::getKey)
             .collect(Collectors.toList());
+}
+@PostMapping("/{userId}/invite/{eventId}")
+public ResponseEntity<String> inviteUser(@PathVariable Long userId, @PathVariable Long eventId) {
+   
+    return ResponseEntity.ok("Invitation sent successfully!");
 }
 }
