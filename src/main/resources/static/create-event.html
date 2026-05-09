@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Event - ShowUp2Move</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; }
+        .card { border-radius: 15px; border: none; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+<div class="container mt-5" style="max-width: 600px;">
+    <div class="card p-4">
+        <h2 class="text-center mb-4 fw-bold text-primary">Organize a Match 🏆</h2>
+        <form id="eventForm">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Sport</label>
+                <select id="sport" class="form-select" required>
+                    <option value="Football">Football ⚽</option>
+                    <option value="Basketball">Basketball 🏀</option>
+                    <option value="Tennis">Tennis 🎾</option>
+                    <option value="Volleyball">Volleyball 🏐</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Location</label>
+                <input type="text" id="location" class="form-control" placeholder="e.g. Central Park Arena" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Date & Time</label>
+                <input type="datetime-local" id="eventTime" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Description</label>
+                <textarea id="description" class="form-control" rows="3" placeholder="Join us for a friendly 5v5 match!"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold">Max Participants</label>
+                <input type="number" id="maxParticipants" class="form-control" value="10" min="2">
+            </div>
+            <button type="submit" class="btn btn-primary w-100 btn-lg fw-bold">Create Event</button>
+            <a href="index.html" class="btn btn-link w-100 mt-2 text-decoration-none text-muted">Cancel</a>
+        </form>
+    </div>
+</div>
+
+<script>
+    const loggedUser = JSON.parse(localStorage.getItem('loggedUser'));
+    if (!loggedUser) window.location.href = 'login.html';
+
+    document.getElementById('eventForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const eventData = {
+            sport: document.getElementById('sport').value,
+            location: document.getElementById('location').value,
+            eventTime: document.getElementById('eventTime').value,
+            description: document.getElementById('description').value,
+            // ADAUGĂ ACEASTĂ LINIE:
+            maxParticipants: parseInt(document.getElementById('maxParticipants').value),
+            participants: [loggedUser]
+        };
+
+        try {
+            const response = await fetch('/api/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(eventData)
+            });
+
+            if (response.ok) {
+                alert('Event created successfully!');
+                window.location.href = 'index.html';
+            } else {
+                alert('Server error: ' + response.status);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Could not connect to server.');
+        }
+    });
+</script>
+</body>
+</html>

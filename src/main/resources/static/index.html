@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ShowUp2Move - Get moving fast!</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .hero-section { background: linear-gradient(135deg, #007bff, #6610f2); color: white; padding: 60px 0; border-bottom-left-radius: 50px; border-bottom-right-radius: 50px; }
+        .user-card { border: none; border-radius: 15px; transition: transform 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .user-card:hover { transform: translateY(-5px); }
+        .badge-sport { background-color: #e9ecef; color: #495057; margin-right: 5px; border: 1px solid #dee2e6; }
+        .nav-user { color: white; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-transparent position-absolute w-100">
+    <div class="container">
+        <span class="nav-user" id="welcomeMsg"></span>
+        <button class="btn btn-sm btn-outline-light" onclick="logout()">Logout</button>
+    </div>
+</nav>
+
+<div class="hero-section text-center">
+    <div class="container">
+        <h1 class="display-4 fw-bold">ShowUp2Move ⚽🏀🎾</h1>
+        <p class="lead">Find sports partners in seconds.</p>
+        <div class="d-flex justify-content-center gap-3 mt-4">
+            <button id="showUpBtn" class="btn btn-warning btn-lg fw-bold" onclick="toggleMyStatus()">
+                ShowUpToday?
+            </button>
+            <a href="register.html" class="btn btn-outline-light btn-lg fw-bold">Create Profile</a>
+        </div>
+    </div>
+</div>
+
+<div class="container my-5">
+    <h2 class="mb-4">Players available</h2>
+    <div id="users-list" class="row g-4">
+        <div class="text-center">Loading players...</div>
+    </div>
+</div>
+
+<div class="container my-5">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Active Matches 🏟️</h2>
+        <a href="create-event.html" class="btn btn-primary fw-bold">+ Organize Match</a>
+    </div>
+    <div id="events-list" class="row g-4">
+        <div class="text-center">Loading matches...</div>
+    </div>
+</div>
+
+<script>
+    // 1. Login Check & Globals
+    let loggedUser = JSON.parse(localStorage.getItem('loggedUser'));
+    
+    if (!loggedUser) {
+        window.location.href = 'login.html';
+    } else {
+        document.getElementById('welcomeMsg').innerText = `Hi, ${loggedUser.name}! 👋`;
+        updateButtonState();
+    }
+
+    function logout() {
+        localStorage.removeItem('loggedUser');
+        window.location.href = 'login.html';
+    }
+
+    function updateButtonState() {
+        const btn = document.getElementById('showUpBtn');
+        if (loggedUser.available) {
+            btn.innerText = "I'm Ready! (Active)";
+            btn.className = "btn btn-success btn-lg fw-bold";
+        } else {
+            btn.innerText = "ShowUpToday?";
+            btn.className = "btn btn-warning btn-lg fw-bold";
+        }
+    }
+
+    // 2. Status change function (NUME CORECTAT: toggleMyStatus)
+    async function toggleMyStatus() {
+        console.log("Toggle status init...");
+        try {
+            const response = await fetch(`/api/users/${loggedUser.id}/toggle-status`, {
+                method: 'PUT'
+            });
+
+            if (!response.ok) throw new Error("Server error: " + response.status);
+
+            const data = await response.json();
+            
+            // Actualizăm datele locale cu ce a venit de la server
+            localStorage.setItem('loggedUser', JSON.stringify(data.user));
+            loggedUser = data.user;
+
+            // Logica Smart Match (Sugestie)
+            // ... în interiorul toggleMyStatus, după ce primești data ...
+
+if (data.suggestion) {
+    if (confirm(data.suggestion)) {
+        if (data.type === "JOIN_EXISTING") {
+            // Dacă meciul există deja, mergem jos la lista de meciuri să dea "Join"
+            document.getElementById('events-list').scrollIntoView({ behavior: 'smooth' });
+        } else {
+            // Dacă e un meci nou, mergem la pagina de creare
+            window.location.href = 'create-event.html';
+        }
+        return;
+    }
+}
+    location.reload();
+
+        } catch (error) {
+            console.error("Error:", error);
+            alert("Could not update status. Is the backend running?");
+        }
+    }
+
+    // 3. Fetch user list
+    async function fetchUsers() {
+        try {
+            const response = await fetch('/api/users');
+            const users = await response.json();
+            const container = document.getElementById('users-list');
+            container.innerHTML = ''; 
+
+            users.forEach(user => {
+                const sportsHtml = user.sports && user.sports.length > 0 
+                    ? user.sports.map(s => `<span class="badge badge-sport">${s}</span>`).join('')
+                    : '<span class="text-muted small">No sports</span>';
+
+                const userHtml = `
+                    <div class="col-md-4">
+                        <div class="card user-card h-100 p-3 ${user.id === loggedUser.id ? 'border border-primary' : ''}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <h5 class="card-title fw-bold mb-0">${user.name} ${user.id === loggedUser.id ? '(You)' : ''}</h5>
+                                    <span class="badge bg-info text-dark">${user.skillLevel || 'Beginner'}</span>
+                                </div>
+                                <p class="card-text text-muted mt-2 small">${user.bio || 'Available for sports!'}</p>
+                                <div class="mb-3 mt-3">${sportsHtml}</div>
+                                <hr>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge ${user.available ? 'bg-success' : 'bg-danger'}">
+                                        ${user.available ? 'Available' : 'Unavailable'}
+                                    </span>
+                                    <button class="btn btn-outline-primary btn-sm rounded-pill px-3">Invite</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += userHtml;
+            });
+        } catch (error) {
+            console.error('Fetch error:', error);
+        }
+    }
+
+    // 4. Fetch events
+    async function fetchEvents() {
+        try {
+            const response = await fetch('/api/events');
+            const events = await response.json();
+            const container = document.getElementById('events-list');
+            container.innerHTML = '';
+
+            if (events.length === 0) {
+                container.innerHTML = '<p class="text-center text-muted">No matches yet. Organize one!</p>';
+                return;
+            }
+
+            events.forEach(event => {
+                const isAlreadyJoined = event.participants.some(p => p.id === loggedUser.id);
+                const isUserBusy = !loggedUser.available;
+                const maxSlots = event.maxParticipants || 10;
+                const occupiedSlots = event.participants.length;
+                const remainingSlots = maxSlots - occupiedSlots;
+                const isFull = remainingSlots <= 0;
+
+                const participantsList = event.participants.map(p => 
+                    `<span class="badge bg-secondary m-1">${p.name}</span>`
+                ).join('');
+
+                const eventHtml = `
+                    <div class="col-md-6">
+                        <div class="card user-card p-3 border-start border-primary border-4 shadow-sm">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h5 class="fw-bold text-uppercase mb-0">${event.sport}</h5>
+                                    <span class="badge ${isFull ? 'bg-danger' : 'bg-success'}">
+                                        ${isFull ? 'FULL' : remainingSlots + ' slots left'}
+                                    </span>
+                                </div>
+                                <p class="mb-1 text-primary small fw-bold">📅 ${event.eventTime.replace('T', ' ')}</p>
+                                <p class="mb-1 text-muted small">📍 ${event.location}</p>
+                                <div class="mt-3">
+                                    <label class="small fw-bold text-muted d-block mb-1">Participants:</label>
+                                    <div class="d-flex flex-wrap">${participantsList}</div>
+                                </div>
+                                <hr>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">${occupiedSlots}/${maxSlots} joined</small>
+                                    <button 
+                                        class="btn btn-sm ${isUserBusy ? 'btn-secondary' : (isAlreadyJoined ? 'btn-success' : (isFull ? 'btn-danger' : 'btn-primary'))} fw-bold px-3" 
+                                        onclick="joinMatch(${event.id})"
+                                        ${isUserBusy || isAlreadyJoined || isFull ? 'disabled' : ''}>
+                                        ${isAlreadyJoined ? '✓ Joined' : (isFull ? 'Match Full' : (isUserBusy ? 'Set Available' : 'Join Match'))}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += eventHtml;
+            });
+        } catch (error) {
+            console.error('Error:', error);
+        }
+    }
+
+    async function joinMatch(eventId) {
+        if (!loggedUser.available) {
+            alert("❌ Set yourself as 'Available' first!");
+            return;
+        }
+        try {
+            const response = await fetch(`/api/events/${eventId}/join/${loggedUser.id}`, { method: 'PUT' });
+            if (response.ok) {
+                alert("Joined! 🏟️");
+                location.reload(); 
+            }
+        } catch (error) { console.error(error); }
+    }
+
+    // Initial load
+    fetchUsers();
+    fetchEvents();
+</script>
+
+</body>
+</html>
